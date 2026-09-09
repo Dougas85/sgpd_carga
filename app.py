@@ -7,6 +7,10 @@ app = Flask(__name__)
 # Libera chamadas do SGPD para o Vercel
 CORS(app, resources={r"/api/*": {"origins": "*"}})
 
+
+def remover_acentos(texto):
+    return ''.join(c for c in unicodedata.normalize('NFD', texto) if unicodedata.category(c) != 'Mn').upper()
+
 def extrair_conformidade_sgpd(html_content, lista_filtro=None):
     soup = BeautifulSoup(html_content, 'html.parser')
     resultados = []
