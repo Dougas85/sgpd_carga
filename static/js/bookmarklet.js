@@ -1,5 +1,4 @@
 (function () {
-    // 1. Injeta os estilos do painel flutuante
     if (!document.getElementById('sgpd-style')) {
         const style = document.createElement('style');
         style.id = 'sgpd-style';
@@ -26,7 +25,6 @@
         document.head.appendChild(style);
     }
 
-    // 2. Interface HTML
     let panel = document.getElementById('sgpd-panel');
     if (!panel) {
         panel = document.createElement('div');
@@ -53,12 +51,14 @@
         document.body.appendChild(panel);
     }
 
-    // 3. Execução com interrupção imediata
+    // Função para normalizar strings removendo acentos e espaços extras
+    const normalizar = text => text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().trim();
+
     document.getElementById('sgpd-btn-iniciar').onclick = async function () {
         const btn = this;
         const progress = document.getElementById('sgpd-progress');
         const inputFiltro = document.getElementById('sgpd-unidades').value;
-        const listaAlvos = inputFiltro.split(',').map(s => s.trim().toUpperCase()).filter(s => s.length > 0);
+        const listaAlvos = inputFiltro.split(',').map(s => normalizar(s)).filter(s => s.length > 0);
 
         btn.disabled = true;
         let htmlAcumulado = '';
@@ -72,36 +72,34 @@
 
             const tabelaAtual = document.querySelector('table');
             if (tabelaAtual) {
-                htmlAcumulado += tabelaAtual.outerHTML;
+                // Otimização de Payload: Envia apenas as linhas <tr> para economizar dados
+                htmlAcumulado += tabelaAtual.querySelector('tbody') ? tabelaAtual.querySelector('tbody').innerHTML : tabelaAtual.innerHTML;
 
-                // Checa quais unidades da lista do usuário estão presente no HTML atual
                 if (listaAlvos.length > 0) {
-                    const textoTabela = tabelaAtual.innerText.toUpperCase();
+                    const textoTabelaNorm = normalizar(tabelaAtual.innerText);
 
                     listaAlvos.forEach(alvo => {
-                        if (textoTabela.includes(alvo)) {
+                        if (textoTabelaNorm.includes(alvo)) {
                             unidadesEncontradas.add(alvo);
                         }
                     });
 
-                    // INTERRUPÇÃO IMEDIATA: Se já encontrou TODAS as unidades da lista, encerra no ato
+                    // Interrupção: Parar se todas as unidades do filtro foram localizadas
                     if (unidadesEncontradas.size >= listaAlvos.length) {
-                        progress.innerText = `Todas as ${listaAlvos.length} unidades foram localizadas! Parando varredura...`;
+                        progress.innerText = `Todas as ${listaAlvos.length} unidades solicitadas foram localizadas! Parando...`;
                         break;
                     }
                 }
             }
 
-            // Se chegou na última página cadastrada, encerra
             if (pag >= totalPaginas) break;
 
-            // Transição para a próxima página
             const proximaPagina = pag + 1;
             let botaoProximo = Array.from(document.querySelectorAll('.paginador-controles button, .paginador-controles a, .pagination a, .pagination button, table tfoot a, table tfoot button'))
                 .find(el => el.innerText.trim() === String(proximaPagina));
 
             if (!botaoProximo) {
-                botaoProximo = document.querySelector('.paginador-controles button .fa-chevron-right')?.parentElement
+                botaoProximo = document.querySelector('.paginador-controles button .fa-chevron-right')?.parentElement 
                             || document.querySelector('.fa-chevron-right')?.parentElement
                             || document.querySelector('button[title*="Próxima"]')
                             || document.querySelector('a[title*="Próxima"]');
@@ -109,7 +107,6 @@
 
             if (botaoProximo) {
                 botaoProximo.click();
-                // Aguarda 1.2 segundos para a tabela atualizar na tela
                 await new Promise(r => setTimeout(r, 1200));
             } else {
                 break;
@@ -118,18 +115,19 @@
 
         progress.innerText = "Enviando dados para processamento...";
 
-        // Envia para o Flask
         try {
+            // URL corrigida para sgpdcarga.vercel.app
             const resp = await fetch('https://sgpdcarga.vercel.app/api/analisar', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    html: htmlAcumulado,
+                    html: `<table>${htmlAcumulado}</table>`,
                     unidades: listaAlvos
                 })
             });
+
             if (!resp.ok) {
-                throw new Error('HTTP Status ${resp.status}');
+                throw new Error(`Servidor respondeu com status ${resp.status}`);
             }
 
             const data = await resp.json();
@@ -157,7 +155,7 @@
                 progress.innerText = "Erro no servidor: " + data.erro;
             }
         } catch (err) {
-            progress.innerText = "Erro de conexão com o Flask.";
+            progress.innerText = "Erro de conexão: " + err.message;
             console.error(err);
         } finally {
             btn.disabled = false;
