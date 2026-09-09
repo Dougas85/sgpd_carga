@@ -120,7 +120,7 @@
 
         // Envia para o Flask
         try {
-            const resp = await fetch('http://localhost:5000/api/analisar', {
+            const resp = await fetch('https://sagpcarga.vercel.app/api/analisar', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
