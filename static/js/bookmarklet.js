@@ -30,7 +30,7 @@
         panel = document.createElement('div');
         panel.id = 'sgpd-panel';
         panel.innerHTML = `
-            <h3>SGPD - Varredura Inteligente</h3>
+            <h3>SGPD - Pendências de Lançamento</h3>
             <label>Unidades/MCUs a buscar (separadas por vírgula):</label>
             <textarea id="sgpd-unidades" placeholder="Ex: AC BILAC, AC MARTINOPOLIS, AC PIRAPOZINHO, AC ADAMANTINA"></textarea>
             <button id="sgpd-btn-iniciar">Iniciar Varredura</button>
@@ -51,7 +51,6 @@
         document.body.appendChild(panel);
     }
 
-    // Limpa acentos e caracteres especiais para comparação flexível
     const sanitizar = text => text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().replace(/[^A-Z0-9]/g, "");
 
     document.getElementById('sgpd-btn-iniciar').onclick = async function () {
@@ -59,7 +58,6 @@
         const progress = document.getElementById('sgpd-progress');
         const inputFiltro = document.getElementById('sgpd-unidades').value;
         
-        // Mapeia os alvos digitados pelo usuário
         const listaAlvos = inputFiltro.split(',')
             .map(s => ({ original: s.trim(), limpo: sanitizar(s) }))
             .filter(item => item.limpo.length > 0);
@@ -81,16 +79,14 @@
                 if (listaAlvos.length > 0) {
                     const textoPaginaLimpo = sanitizar(tabelaAtual.innerText);
 
-                    // Valida termo por termo
                     listaAlvos.forEach(alvo => {
                         if (textoPaginaLimpo.includes(alvo.limpo)) {
                             unidadesEncontradas.add(alvo.limpo);
                         }
                     });
 
-                    // PARADA IMEDIATA: Se a contagem de únicos bateu com o total da lista, interrompe na hora!
                     if (unidadesEncontradas.size >= listaAlvos.length) {
-                        progress.innerText = `Todas as ${listaAlvos.length} unidades foram localizadas na página ${pag}! Finalizando...`;
+                        progress.innerText = `Todas as ${listaAlvos.length} unidades foram localizadas! Finalizando...`;
                         break;
                     }
                 }
@@ -98,7 +94,6 @@
 
             if (pag >= totalPaginas) break;
 
-            // Próxima página
             const proximaPagina = pag + 1;
             let botaoProximo = Array.from(document.querySelectorAll('.paginador-controles button, .paginador-controles a, .pagination a, .pagination button, table tfoot a, table tfoot button'))
                 .find(el => el.innerText.trim() === String(proximaPagina));
@@ -143,18 +138,20 @@
                 const tbody = document.getElementById('sgpd-tb');
                 tbody.innerHTML = '';
 
-                if (data.resultados.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="2" style="text-align:center; color:#f87171;">Nenhuma unidade encontrada.</td></tr>';
+                // FILTRO: Filtra para exibir APENAS unidades com Resto Não Lançado (is_lancado === false)
+                const pendentes = data.resultados.filter(item => !item.is_lancado);
+
+                if (pendentes.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="2" style="text-align:center; color:#38bdf8; font-weight:bold;">Tudo OK! Nenhuma pendência encontrada.</td></tr>';
                 } else {
-                    data.resultados.forEach(item => {
+                    pendentes.forEach(item => {
                         const tr = document.createElement('tr');
-                        const cssClass = item.is_lancado ? 'st-lancado' : 'st-pendente';
-                        tr.innerHTML = `<td><b>${item.unidade}</b><br><small>${item.mcu}</small></td><td class="${cssClass}">${item.status}</td>`;
+                        tr.innerHTML = `<td><b>${item.unidade}</b><br><small>${item.mcu}</small></td><td class="st-pendente">${item.status}</td>`;
                         tbody.appendChild(tr);
                     });
                 }
 
-                progress.innerText = `Concluído! ${data.resultados.length} unidades exibidas.`;
+                progress.innerText = `Concluído! ${pendentes.length} pendências exibidas.`;
             } else {
                 progress.innerText = "Erro no servidor: " + data.erro;
             }
