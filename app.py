@@ -1,39 +1,36 @@
 import re
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, request, jsonify
+from flask_cors import CORS
 from bs4 import BeautifulSoup
 
 app = Flask(__name__)
+# Libera chamadas do SGPD para o Vercel
+CORS(app, resources={r"/api/*": {"origins": "*"}})
 
 def extrair_conformidade_sgpd(html_content, lista_filtro=None):
     soup = BeautifulSoup(html_content, 'html.parser')
     resultados = []
 
-    # Trata lista de filtros passados (ex: ["DESCALVADO", "DIVINOLANDIA", "00027237"])
     filtros = [f.strip().upper() for f in lista_filtro if f.strip()] if lista_filtro else []
 
-    # Procura todas as linhas de tabela na tela do SGPD
     linhas = soup.find_all('tr')
 
     for linha in linhas:
-        # Busca pelos inputs ocultos que o SGPD usa nativamente por linha
         input_mcu = linha.find('input', {'name': 'mcuUnidade'})
         input_nome = linha.find('input', {'name': 'nomeUnidade'})
         btn_resto = linha.find('button', {'id': 'btn_resto'})
 
-        # Se não tiver essa estrutura, pula a linha (cabeçalhos, modais, etc.)
         if not (input_mcu or input_nome or btn_resto):
             continue
 
         mcu = input_mcu['value'].strip() if input_mcu else 'N/A'
         unidade = input_nome['value'].strip() if input_nome else 'DESCONHECIDA'
 
-        # Validação do Filtro
         if filtros:
             corresponde = any(f in unidade.upper() or f in mcu for f in filtros)
             if not corresponde:
                 continue
 
-        # Identifica status pela classe do botão ('azul' para lançado, 'cinza' para não lançado)
         classes_botao = btn_resto.get('class', []) if btn_resto else []
         texto_botao = btn_resto.get_text(strip=True) if btn_resto else ''
 
@@ -53,8 +50,18 @@ def extrair_conformidade_sgpd(html_content, lista_filtro=None):
 
     return resultados
 
-@app.route('/api/analisar', methods=['POST'])
+@app.route('/', methods=['GET'])
+def home():
+    return jsonify({
+        'status': 'online',
+        'mensagem': 'API SGPD Resíduos operando no Vercel'
+    })
+
+@app.route('/api/analisar', methods=['POST', 'OPTIONS'])
 def analisar():
+    if request.method == 'OPTIONS':
+        return jsonify({'ok': True}), 200
+
     try:
         data = request.get_json() or {}
         html_dom = data.get('html', '')
@@ -81,20 +88,6 @@ def analisar():
 
     except Exception as e:
         return jsonify({'sucesso': False, 'erro': str(e)}), 500
-
-@app.route('/')
-def home():
-    return jsonify({
-        'status': 'online',
-        'mensagem': 'API SGPD Resíduos operando no Vercel'
-    })
-
-@app.after_request
-def add_cors_headers(response):
-    response.headers['Access-Control-Allow-Origin'] = '*'
-    response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
-    response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
-    return response
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
