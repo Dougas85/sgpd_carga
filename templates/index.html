@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SGPD - Verificador de Resíduo</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+
+<div class="container">
+    <header class="card">
+        <h1 style="margin: 0; color: #38bdf8;">SGPD - Monitor de Resíduos</h1>
+        <p style="color: #94a3b8; margin: 5px 0 0 0;">Análise e conformidade de lançamento de resto de unidades</p>
+    </header>
+
+    <div class="card">
+        <label style="display: block; margin-bottom: 8px;"><strong>Lista de Unidades/MCUs para Filtrar (separados por vírgula):</strong></label>
+        <input type="text" id="filtro-unidades" placeholder="Ex: DESCALVADO, DIVINOLANDIA, 00027237" style="width: 100%; padding: 10px; background: #0f172a; border: 1px solid #334155; color: white; border-radius: 6px; margin-bottom: 15px; box-sizing: border-box;">
+
+        <label style="display: block; margin-bottom: 8px;"><strong>Código HTML da Consulta SGPD:</strong></label>
+        <textarea id="html-input" rows="6" placeholder="Cole o código-fonte da página do SGPD aqui..."></textarea>
+
+        <div style="margin-top: 12px; text-align: right;">
+            <button id="btn-analisar">Analisar Lançamentos</button>
+        </div>
+    </div>
+
+    <div id="painel-resultados" style="display: none;">
+        <div class="grid-stats">
+            <div class="stat-box">
+                <small style="color: #94a3b8;">Total Analisado</small>
+                <div id="stat-total" class="stat-number">0</div>
+            </div>
+            <div class="stat-box">
+                <small style="color: #94a3b8;">Resto Lançado</small>
+                <div id="stat-ok" class="stat-number stat-ok">0</div>
+            </div>
+            <div class="stat-box">
+                <small style="color: #94a3b8;">Resto Não Lançado</small>
+                <div id="stat-pend" class="stat-number stat-pending">0</div>
+            </div>
+        </div>
+
+        <div class="card" style="margin-top: 20px;">
+            <table>
+                <thead>
+                    <tr>
+                        <th>MCU</th>
+                        <th>Unidade</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody id="tabela-resultados"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>
