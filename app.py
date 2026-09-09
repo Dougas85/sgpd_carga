@@ -82,6 +82,13 @@ def analisar():
     except Exception as e:
         return jsonify({'sucesso': False, 'erro': str(e)}), 500
 
+@app.route('/')
+def home():
+    return jsonify({
+        'status': 'online',
+        'mensagem': 'API SGPD Resíduos operando no Vercel'
+    })
+
 @app.after_request
 def add_cors_headers(response):
     response.headers['Access-Control-Allow-Origin'] = '*'
