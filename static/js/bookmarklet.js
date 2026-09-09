@@ -51,14 +51,18 @@
         document.body.appendChild(panel);
     }
 
-    // Função para normalizar strings removendo acentos e espaços extras
-    const normalizar = text => text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().trim();
+    // Limpa acentos e caracteres especiais para comparação flexível
+    const sanitizar = text => text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().replace(/[^A-Z0-9]/g, "");
 
     document.getElementById('sgpd-btn-iniciar').onclick = async function () {
         const btn = this;
         const progress = document.getElementById('sgpd-progress');
         const inputFiltro = document.getElementById('sgpd-unidades').value;
-        const listaAlvos = inputFiltro.split(',').map(s => normalizar(s)).filter(s => s.length > 0);
+        
+        // Mapeia os alvos digitados pelo usuário
+        const listaAlvos = inputFiltro.split(',')
+            .map(s => ({ original: s.trim(), limpo: sanitizar(s) }))
+            .filter(item => item.limpo.length > 0);
 
         btn.disabled = true;
         let htmlAcumulado = '';
@@ -72,21 +76,21 @@
 
             const tabelaAtual = document.querySelector('table');
             if (tabelaAtual) {
-                // Otimização de Payload: Envia apenas as linhas <tr> para economizar dados
                 htmlAcumulado += tabelaAtual.querySelector('tbody') ? tabelaAtual.querySelector('tbody').innerHTML : tabelaAtual.innerHTML;
 
                 if (listaAlvos.length > 0) {
-                    const textoTabelaNorm = normalizar(tabelaAtual.innerText);
+                    const textoPaginaLimpo = sanitizar(tabelaAtual.innerText);
 
+                    // Valida termo por termo
                     listaAlvos.forEach(alvo => {
-                        if (textoTabelaNorm.includes(alvo)) {
-                            unidadesEncontradas.add(alvo);
+                        if (textoPaginaLimpo.includes(alvo.limpo)) {
+                            unidadesEncontradas.add(alvo.limpo);
                         }
                     });
 
-                    // Interrupção: Parar se todas as unidades do filtro foram localizadas
+                    // PARADA IMEDIATA: Se a contagem de únicos bateu com o total da lista, interrompe na hora!
                     if (unidadesEncontradas.size >= listaAlvos.length) {
-                        progress.innerText = `Todas as ${listaAlvos.length} unidades solicitadas foram localizadas! Parando...`;
+                        progress.innerText = `Todas as ${listaAlvos.length} unidades foram localizadas na página ${pag}! Finalizando...`;
                         break;
                     }
                 }
@@ -94,6 +98,7 @@
 
             if (pag >= totalPaginas) break;
 
+            // Próxima página
             const proximaPagina = pag + 1;
             let botaoProximo = Array.from(document.querySelectorAll('.paginador-controles button, .paginador-controles a, .pagination a, .pagination button, table tfoot a, table tfoot button'))
                 .find(el => el.innerText.trim() === String(proximaPagina));
@@ -113,21 +118,20 @@
             }
         }
 
-        progress.innerText = "Enviando dados para processamento...";
+        progress.innerText = "Processando no Vercel...";
 
         try {
-            // URL corrigida para sgpdcarga.vercel.app
             const resp = await fetch('https://sgpdcarga.vercel.app/api/analisar', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     html: `<table>${htmlAcumulado}</table>`,
-                    unidades: listaAlvos
+                    unidades: listaAlvos.map(a => a.original)
                 })
             });
 
             if (!resp.ok) {
-                throw new Error(`Servidor respondeu com status ${resp.status}`);
+                throw new Error(`Status ${resp.status}`);
             }
 
             const data = await resp.json();
