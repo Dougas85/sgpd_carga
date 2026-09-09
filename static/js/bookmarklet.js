@@ -128,6 +128,9 @@
                     unidades: listaAlvos
                 })
             });
+            if (!resp.ok) {
+                throw new Error('HTTP Status ${resp.status}');
+            }
 
             const data = await resp.json();
 
